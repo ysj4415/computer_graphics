@@ -7,17 +7,9 @@
 #include <stdio.h>
 #include <random>
 #include <cassert>
+#define CheckBox 0.06
+class Point;
 
-#define arrlen(x) sizeof(x) / sizeof(GLfloat)
-#define MaxFrame 100
-
-enum ShapeIndex
-{
-	S_LINE = 0,
-	S_TRIANGLE,
-	S_RECT,
-	S_PENTAGON
-};
 
 //---윈도우 사이즈 변수
 int WinSize_r = 1200;
@@ -29,8 +21,13 @@ int windowID;		//---윈도우 아이디
 //---콜백 함수
 GLvoid drawScene(GLvoid);
 GLvoid Reshape(int w, int h);
-GLvoid TimerFunction(int value);
 GLvoid Keyboard(unsigned char key, int x, int y);
+GLvoid Mouse(int button, int state, int x, int y);
+GLvoid Motion(int x, int y);
+
+//------사용자 정의 함수
+GLfloat* MakeArray(Point[4]);
+
 
 //---glsl
 void make_vertexShader();
@@ -40,9 +37,9 @@ void InitBuffer();
 char* filetobuf(const char* file);
 GLchar* vertexsource, * fragmentsource;		//---소스코드 저장 변수
 GLuint vertexshader, fragmentshader;		//---세이더 객체
-GLuint vao_line, vao[4];
-GLuint vbo_line, vbo[4];
-GLuint ebo[3];
+GLuint vao_line, vao;
+GLuint vbo_line, vbo;
+GLuint ebo;
 //---쉐이더 프로그램
 GLuint s_program;
 
@@ -51,181 +48,127 @@ GLfloat back_line[12] = { -1.0 , 0, 0,
 						1.0, 0, 0, 
 						0, 1.0, 0, 
 						0, -1.0 };
-GLfloat line[9] = { -0.8, 0.2, 0,
-					-0.2, 0.8, 0 ,
-					-0.5, 0.5, 0};
-GLfloat line_finalshape[9] = { -0.8, 0.2, 0,
-							-0.2, 0.2, 0,
-							-0.5, 0.8, 0 };
-GLfloat triangle[12] = { 0.2, 0.2, 0,
-						0.8, 0.2, 0,
-						0.5, 0.8, 0,
-						0.5, 0.8, 0 };
-GLfloat triangle_finalshape[12] = { 0.2, 0.25, 0,
-								0.8, 0.25, 0,
-								0.8, 0.8, 0,
-								0.2, 0.8, 0 };
-int triangle_ebo[6] = { 0, 1, 2,
-					0, 2, 3 };
-GLfloat rect[15] = { -0.8, -0.2, 0,
-					-0.2, -0.2, 0,
-					-0.2, -0.8, 0,
-					-0.8, -0.8, 0,
-					-0.5, -0.2, 0};
-GLfloat rect_finalshape[15] = { -0.8, -0.5, 0,
-							-0.2, -0.5, 0,
-							-0.35, -0.85, 0,
-							-0.65, -0.85, 0,
-							-0.5, -0.2, 0 };
-int rect_ebo[9] = { 0, 1, 2,
-					0, 2, 3,
-					0, 1, 4};
-GLfloat pentagon[15] = { 0.5, -0.2, 0,
-						0.8, -0.5, 0,
-						0.65, -0.85, 0,
-						0.35, -0.85, 0,
-						0.2, -0.5, 0 };
-GLfloat pentagon_finalshape[15] = { 0.5, -0.5, 0,
-						0.5, -0.5, 0,
-						0.5, -0.5, 0,
-						0.5, -0.5, 0,
-						0.5, -0.5, 0 };
-int pentagon_ebo[9] = { 0,1,2,
-						0,2,3,
-						0,3,4 };
 
-int frame[4] = { 0 };
-int shapeloop = 1;
-//---추가구현
-bool second_anim = false;
-
-
-GLfloat* ShapeAnim(int index)
+GLfloat* vertex = NULL;
+int vertex_ebo[] = { 0,1,  1,2,  2,3,  3,0 };
+int MouseClick = -1;
+bool InRect = false;
+GLfloat ori_x, ori_y;
+class Point
 {
-	int arrlenth = 0;
-	switch (index)
+private:
+	GLfloat x, y;
+	int quadrant;
+public:
+	Point() : x(0), y(0), quadrant(0) {}
+	~Point() {}
+	int SetQuadrant()
 	{
-	case S_LINE:
-		arrlenth = arrlen(line);
-		break;
-	case S_TRIANGLE:
-		arrlenth = arrlen(triangle);
-
-		break;
-	case S_RECT:
-		arrlenth = arrlen(rect);
-
-		break;
-	case S_PENTAGON:
-		arrlenth = arrlen(pentagon);
-
-		break;
+		if (x > 0 && y >= 0)
+			quadrant = 1;
+		else if (x <= 0 && y > 0)
+			quadrant = 2;
+		else if (x < 0 && y <= 0)
+			quadrant = 3;
+		else if (x >= 0 && y < 0)
+			quadrant = 4;
+		return quadrant;
 	}
-	if (arrlenth != 0)
+	void SetPoint(GLfloat a, GLfloat b) { x = a; y = b; SetQuadrant(); }
+	bool CheckMouse(int a, int b)
 	{
-		GLfloat* arr = new GLfloat[arrlenth]{ 0 };
-		switch (index)
-		{
-		case S_LINE:
-			for (int i = 0; i < arrlenth; i++)
-				arr[i] = line[i] + (line_finalshape[i] - line[i]) * ((GLfloat)frame[S_LINE] / MaxFrame);
+		GLfloat mx = ((GLfloat)(a - (WinSize_r / 2)) / (WinSize_r / 2));
+		GLfloat my = ((GLfloat)((WinSize_w / 2) - b) / (WinSize_w / 2));
 
-			frame[S_LINE] = (frame[S_LINE] + shapeloop) % MaxFrame;
-
-			break;
-		case S_TRIANGLE:
-			for (int i = 0; i < arrlenth; i++)
-				arr[i] = triangle[i] + (triangle_finalshape[i] - triangle[i]) * ((GLfloat)frame[S_TRIANGLE] / MaxFrame);
-			frame[S_TRIANGLE] = (frame[S_TRIANGLE] + shapeloop) % MaxFrame;
-
-			break;
-		case S_RECT:
-			for (int i = 0; i < arrlenth; i++)
-				arr[i] = rect[i] + (rect_finalshape[i] - rect[i]) * ((GLfloat)frame[S_RECT] / MaxFrame);
-			frame[S_RECT] = (frame[S_RECT] + shapeloop) % MaxFrame;
-
-			break;
-		case S_PENTAGON:
-			for (int i = 0; i < arrlenth; i++)
-				arr[i] = pentagon[i] + (pentagon_finalshape[i] - pentagon[i]) * ((GLfloat)frame[S_PENTAGON] / MaxFrame);
-			frame[S_PENTAGON] = (frame[S_PENTAGON] + shapeloop) % MaxFrame;
-			break;
-		}
-		if (arr != NULL)
-			return arr;
+		if (mx >= x - CheckBox && mx <= x + CheckBox && my >= y - CheckBox && my <= y + CheckBox)
+			return true;
 		else
-			return 0;
+			return false;
 	}
-	else
-		return 0;
-}
-//------------추가구현
-int add_frame = 0;
-int add_Maxframe = 400;
-GLfloat add_shape[15] = { -0.5, -0.5, 0,
-						0.5, 0.5, 0,
-						0,0,0,
-						0,0,0,
-						0,0,0 };
-GLfloat add_shape2[15] = { -0.5, -0.5, 0,
-							0.5, -0.5, 0,
-							0,0.6,0,
-							0,0.6,0,
-							0,0.6,0 };
-GLfloat add_shape3[15] = { -0.5, -0.5, 0,
-							0.5, -0.5, 0,
-							-0.5, 0.5, 0,
-							0.5, 0.5, 0,
-							0.5, 0.5, 0 };
-GLfloat add_shape4[15] = { -0.25, -0.6, 0,
-							0.25, -0.6, 0,
-							-0.4,0.2,0,
-							0.4,0.2,0,
-							0,0.8,0 };
-GLfloat add_shape5[15] = { 0, 0, 0,
-							0, 0, 0,
-							0, 0, 0,
-							0, 0, 0,
-							0, 0, 0 };
-int add_shape_ebo[9] = { 0,2,4,
-					0,1,4,
-					1,3,4 };
-GLuint add_vao, add_vbo, add_ebo;
-
-GLfloat* additional_ShapeAnim()
-{
-	GLfloat* arr = new GLfloat[15]{ 0 };
-	switch (add_frame / 100)
+	void MovePoint(int a, int b)
 	{
-	case 0:
-		for (int i = 0; i < 15; i++)
-			arr[i] = add_shape[i] + (add_shape2[i] - add_shape[i]) * ((GLfloat)((add_frame % 100)) / 100);
-
-
-		break;
-	case 1:
-		for (int i = 0; i < 15; i++)
-			arr[i] = add_shape2[i] + (add_shape3[i] - add_shape2[i]) * ((GLfloat)(add_frame % 100) / 100);
-
-		break;
-	case 2:
-		for (int i = 0; i < 15; i++)
-			arr[i] = add_shape3[i] + (add_shape4[i] - add_shape3[i]) * ((GLfloat)(add_frame % 100) / 100);
-
-		break;
-	case 3:
-		for (int i = 0; i < 15; i++)
-			arr[i] = add_shape4[i] + (add_shape5[i] - add_shape4[i]) * ((GLfloat)(add_frame % 100) / 100);
-		break;
+		GLfloat mx = ((GLfloat)(a - (WinSize_r / 2)) / (WinSize_r / 2));
+		GLfloat my = ((GLfloat)((WinSize_w / 2) - b) / (WinSize_w / 2));
+		SetPoint(mx, my);
 	}
-	add_frame = (add_frame + 1) % add_Maxframe;
+	GLfloat GetX() { return x; }
+	GLfloat GetY() { return y; }
+};
+GLfloat* MakeArray(Point p[4])
+{
+	GLfloat* arr = new GLfloat[12]{ 0 };
+	for (int i = 0; i < 4; i++)
+	{
+		arr[i * 3] = p[i].GetX();
+		arr[i * 3 + 1] = p[i].GetY();
+		arr[i * 3 + 2] = 0;
+	}
 
-	if (arr != NULL)
-		return arr;
+	return arr;
+}
+Point spot[4];
+Point ori_spot[4];
+
+bool CheckInRect(int click_x, int click_y)
+{
+	GLfloat x = ((GLfloat)(click_x - (WinSize_r / 2)) / (WinSize_r / 2));
+	GLfloat y = ((GLfloat)((WinSize_w / 2) - click_y) / (WinSize_w / 2));
+
+	GLfloat range[4];
+	for (int i = 0; i < 4; i++)
+	{
+		GLfloat a;
+		if (i % 2 == 0)
+		{
+			a = (spot[i].GetY() - spot[(i + 1) % 4].GetY()) / (spot[i].GetX() - spot[(i + 1) % 4].GetX());
+			range[i] = a * (x - spot[i + 1].GetX()) + spot[i].GetY();
+		}
+		else
+		{
+			a = (spot[i].GetX() - spot[(i + 1) % 4].GetX()) / (spot[i].GetY() - spot[(i + 1) % 4].GetY());
+			range[i] = a * (y - spot[i].GetY()) + spot[i].GetX();
+		}
+	}
+	cout << endl;
+	if (y < range[0] && y > range[2] && x > range[1] && x < range[3])
+		return true;
 	else
-		return 0;
+		return false;
 }
 
+float GetArea(Point p[], int count)
+{
+	float det_sum = 0;
+	float i_det_sum = 0;
+
+	for (int i = 0; i < count; i++)
+	{
+		int i_x = (WinSize_r / 2) * p[i].GetX() + (WinSize_r / 2);
+		int i_y = (WinSize_w / 2) - (WinSize_w / 2) * p[i].GetY();
+		int i_x2 = (WinSize_r / 2) * p[(i + 1) % count].GetX() + (WinSize_r / 2);
+		int i_y2 = (WinSize_w / 2) - (WinSize_w / 2) * p[(i + 1) % count].GetY();
+		GLfloat x = p[i].GetX();
+		GLfloat y =p[i].GetY();
+		GLfloat x2 = p[(i + 1) % count].GetX();
+		GLfloat y2 = p[(i + 1) % count].GetY();
+		det_sum += x * y2 - x2 * y;
+	}
+	return fabs(det_sum) / 2;
+}
+float i_GetArea(Point p[], int count)
+{
+	float det_sum = 0;
+
+	for (int i = 0; i < count; i++)
+	{
+		int x = (WinSize_r / 2) * p[i].GetX() + (WinSize_r / 2);
+		int y = (WinSize_w / 2) - (WinSize_w / 2) * p[i].GetY();
+		int x2 = (WinSize_r / 2) * p[(i + 1) % count].GetX() + (WinSize_r / 2);
+		int y2 = (WinSize_w / 2) - (WinSize_w / 2) * p[(i + 1) % count].GetY();
+		det_sum += x * y2 - x2 * y;
+	}
+	return fabs(det_sum) / 2;
+}
 void main(int argc, char** argv)		//---윈도우 출력, 콜백함수 설정
 {
 	//---윈도우 생성
@@ -246,14 +189,20 @@ void main(int argc, char** argv)		//---윈도우 출력, 콜백함수 설정
 		std::cout << "GLEW initialized\n";
 	
 	
+	spot[0].SetPoint(0.5, 0.5);
+	spot[1].SetPoint(-0.5, 0.5);
+	spot[2].SetPoint(-0.5, -0.5);
+	spot[3].SetPoint(0.5, -0.5);
+
+
 	InitShader();
 	InitBuffer();
 
 	glutDisplayFunc(drawScene);
 	glutReshapeFunc(Reshape);
 	glutKeyboardFunc(Keyboard);
-
-	glutTimerFunc(50, TimerFunction, 1);
+	glutMotionFunc(Motion);
+	glutMouseFunc(Mouse);
 
 
 	glutMainLoop();
@@ -268,70 +217,27 @@ GLvoid drawScene()
 	int vColorLocation = glGetUniformLocation(s_program, "vColor");
 
 	glUseProgram(s_program);
-	if (second_anim == false)
-	{
-		//-------------선 그리기
-		glUniform4f(vColorLocation, 0.0f, 0.0f, 0.0f, 1.0f);
+
+	//-------------선 그리기
+	glUniform4f(vColorLocation, 0.0f, 0.0f, 0.0f, 1.0f);
 
 
-		glBindVertexArray(vao_line);
-		glEnableVertexAttribArray(0);
+	glBindVertexArray(vao_line);
+	glEnableVertexAttribArray(0);
 
-		glDrawArrays(GL_LINES, 0, 2);
-		glDrawArrays(GL_LINES, 2, 2);
-		//-------------도형 그리기
-		for (int i = 0; i < 4; i++)
-		{
-			glBindVertexArray(vao[i]);
-			glEnableVertexAttribArray(0);
-			switch (i)
-			{
-			case 0:
-				glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-				glUniform4f(vColorLocation, 0.0f, 0.0f, 1.0f, 1.0f);
-				glDrawArrays(GL_TRIANGLES, 0, 3);
-				glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-				break;
-			case 1:
-				glUniform4f(vColorLocation, 1.0f, 0.0f, 0.0f, 1.0f);
-				glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-				break;
-			case 2:
-				glUniform4f(vColorLocation, 0.0f, 1.0f, 0.0f, 1.0f);
-				glDrawElements(GL_TRIANGLES, 9, GL_UNSIGNED_INT, 0);
-				break;
-			case 3:
-				glUniform4f(vColorLocation, 0.2f, 0.5f, 0.5f, 1.0f);
-				glDrawElements(GL_TRIANGLES, 9, GL_UNSIGNED_INT, 0);
-				break;
-			}
-		}
-
-	}
-	else
-	{
-		glBindVertexArray(add_vao);
-		glEnableVertexAttribArray(0);
+	glDrawArrays(GL_LINES, 0, 2);
+	glDrawArrays(GL_LINES, 2, 2);
 		
-		if(add_frame == 0)	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-		switch (add_frame / 100)
-		{
-		case 0:
-			glUniform4f(vColorLocation, 0.1f, 0.5f, 0.1f, 1.0f);
-			break;
-		case 1:
-			glUniform4f(vColorLocation, 1.0f, 0.0f, 0.0f, 1.0f);
-			break;
-		case 2:
-			glUniform4f(vColorLocation, 0.0f, 1.0f, 0.2f, 1.0f);
-			break;
-		case 3:
-			glUniform4f(vColorLocation, 0.2f, 0.5f, 0.4f, 1.0f);
-			break;
-		}
-		glDrawElements(GL_TRIANGLES, 9, GL_UNSIGNED_INT, 0);
-		if (add_frame == 0)	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-	}
+
+
+	glBindVertexArray(vao);
+	glEnableVertexAttribArray(0);
+		
+	glUniform4f(vColorLocation, 0.0f, 0.0f, 1.0f, 1.0f);
+
+	glDrawElements(GL_LINES, 8, GL_UNSIGNED_INT, 0);
+
+	
 	glBindVertexArray(0);
 	glDisableVertexAttribArray(0);
 	glutSwapBuffers();
@@ -435,125 +341,96 @@ void InitBuffer()
 
 	glEnableVertexAttribArray(0);
 
+	if (vertex != NULL) delete vertex;
+	vertex = MakeArray(spot);
 	//----------------도형
-	glGenVertexArrays(4, vao);
-	glGenBuffers(4, vbo);
-	glGenBuffers(3, ebo);
+	glGenVertexArrays(1, &vao);
+	glGenBuffers(1, &vbo);
+	glGenBuffers(1, &ebo);
+	glBindVertexArray(vao);
 
-	for (int i = 0; i < 4; i++)
-	{
-		glBindVertexArray(vao[i]);
-		glBindBuffer(GL_ARRAY_BUFFER, vbo[i]);
+	glBindBuffer(GL_ARRAY_BUFFER, vbo);
+	glBufferData(GL_ARRAY_BUFFER, 12 * sizeof(GLfloat), vertex, GL_STATIC_DRAW);
 
-		switch (i)
-		{
-		case 0:
-			glBufferData(GL_ARRAY_BUFFER, arrlen(line) * sizeof(GLfloat), line, GL_STATIC_DRAW);
-			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
-			break;
-		case 1:
-			glBufferData(GL_ARRAY_BUFFER, arrlen(triangle) * sizeof(GLfloat), triangle, GL_STATIC_DRAW);
-			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
 
-			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo[0]);
-			glBufferData(GL_ELEMENT_ARRAY_BUFFER, arrlen(triangle_ebo) * sizeof(int), triangle_ebo, GL_STATIC_DRAW);
-			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), 0);
-			break;
-		case 2:
-			glBufferData(GL_ARRAY_BUFFER, arrlen(rect) * sizeof(GLfloat), rect, GL_STATIC_DRAW);
-
-			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo[1]);
-			glBufferData(GL_ELEMENT_ARRAY_BUFFER, arrlen(rect_ebo) * sizeof(int), rect_ebo, GL_STATIC_DRAW);
-			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), 0);
-			break;
-		case 3:
-			glBufferData(GL_ARRAY_BUFFER, arrlen(pentagon) * sizeof(GLfloat), pentagon, GL_STATIC_DRAW);
-
-			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo[2]);
-			glBufferData(GL_ELEMENT_ARRAY_BUFFER, arrlen(pentagon_ebo) * sizeof(int), pentagon_ebo, GL_STATIC_DRAW);
-			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), 0);
-			break;
-		}
-
-	}
-	//----------------추가구현
-	glGenVertexArrays(1, &add_vao);
-	glGenBuffers(1, &add_vbo);
-	glGenBuffers(1, &add_ebo);
-
-	glBindVertexArray(add_vao);
-
-	glBindBuffer(GL_ARRAY_BUFFER, add_vbo);
-
-	glBufferData(GL_ARRAY_BUFFER, 15 * sizeof(GLfloat), add_shape, GL_STATIC_DRAW);
-
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, add_ebo);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, 9 * sizeof(int), add_shape_ebo, GL_STATIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, 8 * sizeof(GLfloat), vertex_ebo, GL_STATIC_DRAW);
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), 0);
-
-
-
-	glEnableVertexAttribArray(0);
 }
 
-void changebuffer()
+void RefreshBuffer()
 {
-	for (int i = 0; i < 4; i++)
-	{
-		glBindVertexArray(vao[i]);
-		glBindBuffer(GL_ARRAY_BUFFER, vbo[i]);
+	glBindVertexArray(vao);
+	if (vertex != NULL) delete vertex;
+	vertex = MakeArray(spot);
 
-		GLfloat* arr = NULL;
-		switch (i)
+	glBindBuffer(GL_ARRAY_BUFFER, vbo);
+	glBufferData(GL_ARRAY_BUFFER, 12 * sizeof(GLfloat), vertex, GL_STATIC_DRAW);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), 0);
+}
+
+GLvoid Keyboard(unsigned char key, int x, int y)
+{
+	switch (key)
+	{
+	case 'q':
+		glutDestroyWindow(windowID);
+		break;
+	}
+	glutPostRedisplay();
+}
+GLvoid Mouse(int button, int state, int x, int y)
+{
+	int ClickNum = 0;
+	if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN)
+	{
+		for (int i = 0; i < 4; i++)
 		{
-		case 0:
-			arr = ShapeAnim(S_LINE);
-			for (int i = 0; i < arrlen(line); i++)
+			if (spot[i].CheckMouse(x, y)) MouseClick = i;
+		}
+		if (MouseClick == -1 && CheckInRect(x, y))
+		{
+			InRect = true;
+			ori_x = x; ori_y = y;
+			for (int i = 0; i < 4; i++)
 			{
-				cout << arr[i] << ", " << endl;
+				ori_spot[i].SetPoint(spot[i].GetX(), spot[i].GetY());
 			}
-			glBufferData(GL_ARRAY_BUFFER, arrlen(line) * sizeof(GLfloat), arr, GL_STATIC_DRAW);
-			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
-			break;
-		case 1:
-			arr = ShapeAnim(S_TRIANGLE);
-
-			glBufferData(GL_ARRAY_BUFFER, arrlen(triangle) * sizeof(GLfloat), arr, GL_STATIC_DRAW);
-
-			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), 0);
-			break;
-		case 2:
-			arr = ShapeAnim(S_RECT);
-
-			glBufferData(GL_ARRAY_BUFFER, arrlen(rect) * sizeof(GLfloat), arr, GL_STATIC_DRAW);
-
-			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), 0);
-			break;
-		case 3:
-			arr = ShapeAnim(S_PENTAGON);
-
-			glBufferData(GL_ARRAY_BUFFER, arrlen(pentagon) * sizeof(GLfloat), arr, GL_STATIC_DRAW);
-
-			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), 0);
-			break;
 		}
-		if(arr !=NULL) delete arr;
 	}
-	glEnableVertexAttribArray(0);
+	else if (button == GLUT_LEFT_BUTTON && state == GLUT_UP)
+	{
+		if(MouseClick != -1)
+			MouseClick = -1;
+		if (InRect == true)
+			InRect = false;
+	}
+
+	glutPostRedisplay();
 }
-void change_add_buffer()
+GLvoid Motion(int x, int y)
 {
-	GLfloat* arr = NULL;
-	arr = additional_ShapeAnim();
+	if (MouseClick != -1)
+	{
+		spot[MouseClick].MovePoint(x, y);
+		RefreshBuffer();
+		cout << "Rect Area(GLfloat): " << GetArea(spot, 4) << " / Rect Area(int): " << i_GetArea(spot, 4) << endl;
+	}
+	else if (InRect == true)
+	{
+		GLfloat mx = ((GLfloat)(x - (WinSize_r / 2)) / (WinSize_r / 2));
+		GLfloat my = ((GLfloat)((WinSize_w / 2) - y) / (WinSize_w / 2));
+		GLfloat ori_mx = ((GLfloat)(ori_x - (WinSize_r / 2)) / (WinSize_r / 2));
+		GLfloat ori_my = ((GLfloat)((WinSize_w / 2) - ori_y) / (WinSize_w / 2));
+		for (int i = 0; i < 4; i++)
+		{
+			spot[i].SetPoint(ori_spot[i].GetX() + (mx - ori_mx), ori_spot[i].GetY() + (my - ori_my));
+		}
+		RefreshBuffer();
 
-	glBindVertexArray(add_vao);
+	}
 
-	glBindBuffer(GL_ARRAY_BUFFER, add_vbo);
-
-	glBufferData(GL_ARRAY_BUFFER, 15 * sizeof(GLfloat), arr, GL_STATIC_DRAW);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), 0);
-	glEnableVertexAttribArray(0);
-	if (arr != NULL) delete arr;
+	glutPostRedisplay();
 }
 char* filetobuf(const char* file)
 {
@@ -578,54 +455,4 @@ char* filetobuf(const char* file)
 		buf[length] = 0;
 
 	return buf;
-}
-GLvoid Keyboard(unsigned char key, int x, int y)
-{
-	switch (key)
-	{
-	case 'q':
-		glutDestroyWindow(windowID);
-		break;
-	case 'a':
-		if (second_anim == false)
-		{
-			add_frame = 0;
-			second_anim = true;
-			glutTimerFunc(10, TimerFunction, 2);
-		}
-		else
-		{
-			shapeloop = 1;
-			for (int i = 0; i < 4; i++)
-			{
-				frame[i] = 0;
-			}
-			second_anim = false;
-			glutTimerFunc(10, TimerFunction, 1);
-
-		}
-		break;
-	}
-	glutPostRedisplay();
-}
-GLvoid TimerFunction(int value)
-{
-	if (second_anim == false && value == 1)
-	{
-		changebuffer();
-		if (frame[0] >= MaxFrame - 1 || frame[0] < 0)
-		{
-			shapeloop *= -1;
-			glutTimerFunc(300, TimerFunction, 1);
-		}
-		else
-			glutTimerFunc(10, TimerFunction, 1);
-	}
-	else if(second_anim == true && value == 2)
-	{
-		change_add_buffer();
-
-		glutTimerFunc(10, TimerFunction, 2);
-	}
-	glutPostRedisplay();
 }
