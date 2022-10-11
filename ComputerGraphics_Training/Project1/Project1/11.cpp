@@ -251,7 +251,7 @@ GLvoid Reshape(int w, int h)
 
 void make_vertexShader()
 {
-	vertexsource = filetobuf("vertex.glsl");
+	vertexsource = filetobuf("vertex_2d.glsl");
 
 	//--- 버텍스 세이더 객체 만들기
 	vertexshader = glCreateShader(GL_VERTEX_SHADER);
