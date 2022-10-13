@@ -158,7 +158,7 @@ GLvoid drawScene()
 		{
 			glUniform4f(vColorLocation, cubeColor[(diamond_indice % 4) * i][0], cubeColor[(diamond_indice % 4 * i)][1], cubeColor[(diamond_indice % 4 * i)][2], 1.0f);
 
-			glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, (GLvoid*)(sizeof(GLuint) * (diamond_indice % 4) * i));
+			glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, (GLvoid*)(sizeof(GLuint) * (diamond_indice % 4) * i ));
 		}
 	}
 
