@@ -1,6 +1,6 @@
 #include "objReader.h"
 
-void obj::ReadObj(FILE* objFile)
+void obj::ReadObj()
 {
 	//--- 1. 전체 버텍스 개수 및 삼각형 개수 세기
 	char count[100];
@@ -22,6 +22,8 @@ void obj::ReadObj(FILE* objFile)
 
 	vertex = (glm::vec3*)malloc(sizeof(glm::vec3) * vertexNum);
 	face_v = (int*)malloc(sizeof(int) * faceNum * 3);
+	face_vt = (int*)malloc(sizeof(int) * faceNum * 3);
+	face_vn = (int*)malloc(sizeof(int) * faceNum * 3);
 
 	rewind(objFile);
 
@@ -35,9 +37,13 @@ void obj::ReadObj(FILE* objFile)
 			vertIndex++;
 		}
 		else if (count[0] == 'f' && count[1] == '\0') {
-			fscanf(objFile, "%d %d %d",
-				&face_v[faceIndex * 3], &face_v[faceIndex * 3 + 1], &face_v[faceIndex * 3 + 2]);
-			face_v[faceIndex * 3]--; face_v[faceIndex * 3 + 1]--; face_v[faceIndex * 3 + 2]--;;
+			fscanf(objFile, "%d//%d %d//%d %d//%d",
+				&face_v[faceIndex * 3], &face_vn[faceIndex * 3],
+				&face_v[faceIndex * 3 + 1], &face_vn[faceIndex * 3 + 1],
+				&face_v[faceIndex * 3 + 2], &face_vn[faceIndex * 3 + 2]);
+
+			face_v[faceIndex * 3]--; face_v[faceIndex * 3 + 1]--; face_v[faceIndex * 3 + 2]--;
+			face_vn[faceIndex * 3]--; face_vn[faceIndex * 3 + 1]--; face_vn[faceIndex * 3 + 2]--;
 			faceIndex++;
 		}
 	}

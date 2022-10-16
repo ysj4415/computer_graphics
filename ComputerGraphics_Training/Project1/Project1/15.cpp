@@ -10,6 +10,8 @@
 #include <gl/glm/glm.hpp>
 #include <gl/glm/ext.hpp>
 #include <gl/glm/gtc/matrix_transform.hpp>
+#include "objReader.h"
+
 #define Speed 1
 
 
@@ -79,10 +81,13 @@ bool changeShape = false;
 //---------15번 변수
 //----원뿔(좌)
 GLfloat L_shape_trans[3] = {-0.5,0.0,0.0};
-GLfloat L_shape_scale[3] = {0.2,0.2,0.2};
+GLfloat L_shape_scale = 0.1;
+GLfloat L_shape_scale_origin = 1.0;
+
 //----육면체(우)
 GLfloat R_shape_trans[3] = {0.5,0.2,0.0};
-GLfloat R_shape_scale[3] = {0.4,0.4,0.4};
+GLfloat R_shape_scale = 0.2;
+GLfloat R_shape_scale_origin = 1.0;
 
 
 
@@ -162,13 +167,15 @@ GLvoid drawScene()
 	glm::mat4 Rx_cylinder = glm::mat4(1.0f);
 	glm::mat4 Ry_cylinder = glm::mat4(1.0f);
 	glm::mat4 S_cylinder = glm::mat4(1.0f);
+	glm::mat4 OS_cylinder = glm::mat4(1.0f);
 
 	T_cylinder = glm::translate(T_cylinder, glm::vec3(L_shape_trans[0], L_shape_trans[1], L_shape_trans[2]));
 	Rx_cylinder = glm::rotate(Rx_cylinder, (GLfloat)glm::radians(CONERX), glm::vec3(1.0, 0.0, 0.0));
 	Ry_cylinder = glm::rotate(Ry_cylinder, (GLfloat)glm::radians(CONERY), glm::vec3(0.0, 1.0, 0.0));
-	S_cylinder = glm::scale(S_cylinder, glm::vec3(L_shape_scale[0], L_shape_scale[1], L_shape_scale[2]));
+	S_cylinder = glm::scale(S_cylinder, glm::vec3(L_shape_scale, L_shape_scale, L_shape_scale));
+	OS_cylinder = glm::scale(OS_cylinder, glm::vec3(L_shape_scale_origin, L_shape_scale_origin, L_shape_scale_origin));
 
-	TR_cylinder = TR_line * T_cylinder * Rx_cylinder * Ry_cylinder * S_cylinder;
+	TR_cylinder = OS_cylinder * TR_line * T_cylinder * Rx_cylinder * Ry_cylinder * S_cylinder;
 
 	transformLocation = glGetUniformLocation(s_program_line, "transform");
 	glUniformMatrix4fv(transformLocation, 1, GL_FALSE, glm::value_ptr(TR_cylinder));
@@ -176,14 +183,8 @@ GLvoid drawScene()
 	gluQuadricDrawStyle(qobj, GLU_LINE); // 도형 스타일
 	gluQuadricNormals(qobj, GLU_SMOOTH);
 	gluQuadricOrientation(qobj, GLU_OUTSIDE);
-	if (changeShape == false)
-	{
-		gluCylinder(qobj, 0.8, 0.0, 2.0, 20, 8);
-	}
-	else
-	{
-		gluSphere(qobj, 1.5, 50, 50);
-	}
+
+	gluCylinder(qobj, 0.8, 0.0, 2.0, 20, 8);
 
 
 
@@ -195,33 +196,24 @@ GLvoid drawScene()
 	glm::mat4 Rx_cube = glm::mat4(1.0f);
 	glm::mat4 Ry_cube = glm::mat4(1.0f);
 	glm::mat4 S_cube = glm::mat4(1.0f);
+	glm::mat4 OS_cube = glm::mat4(1.0f);
 
 	T_cube = glm::translate(T_cube, glm::vec3(R_shape_trans[0], R_shape_trans[1], R_shape_trans[2]));
 	Rx_cube = glm::rotate(Rx_cube, (GLfloat)glm::radians(CRX), glm::vec3(1.0, 0.0, 0.0));
 	Ry_cube = glm::rotate(Ry_cube, (GLfloat)glm::radians(CRY), glm::vec3(0.0, 1.0, 0.0));
-	S_cube = glm::scale(S_cube, glm::vec3(R_shape_scale[0], R_shape_scale[1], R_shape_scale[2]));
+	S_cube = glm::scale(S_cube, glm::vec3(R_shape_scale, R_shape_scale, R_shape_scale));
+	OS_cube = glm::scale(OS_cube, glm::vec3(R_shape_scale_origin, R_shape_scale_origin, R_shape_scale_origin));
 
-	TR_cube = TR_line * T_cube * Rx_cube * Ry_cube * S_cube;
+	TR_cube = OS_cube * TR_line * T_cube * Rx_cube * Ry_cube * S_cube;
 
 
 
-	if (changeShape == false)
-	{
-		glUseProgram(s_program);
+	glUseProgram(s_program);
 
-		glBindVertexArray(vao);
-		transformLocation = glGetUniformLocation(s_program, "transform");
-		glUniformMatrix4fv(transformLocation, 1, GL_FALSE, glm::value_ptr(TR_cube));
-		glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, (GLvoid*)(sizeof(GLuint) * 0));
-	}
-	else
-	{
-		glUseProgram(s_program_line);
-
-		transformLocation = glGetUniformLocation(s_program_line, "transform");
-		glUniformMatrix4fv(transformLocation, 1, GL_FALSE, glm::value_ptr(TR_cube));
-		gluCylinder(qobj, 0.7, 0.7, 1.5, 15, 8);
-	}
+	glBindVertexArray(vao);
+	transformLocation = glGetUniformLocation(s_program, "transform");
+	glUniformMatrix4fv(transformLocation, 1, GL_FALSE, glm::value_ptr(TR_cube));
+	glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, (GLvoid*)(sizeof(GLuint) * 0));
 
 
 
@@ -358,9 +350,9 @@ void InitBuffer()
 
 
 	//----------------도형
-	FILE* fp;
-	fp = fopen("cube_14.obj", "rb");
-	ReadObj(fp);
+
+	obj objfile("cube_15.obj");
+	objfile.ReadObj();
 
 	glGenVertexArrays(1,& vao);
 	glGenBuffers(2, vbo);
@@ -368,10 +360,10 @@ void InitBuffer()
 	glBindVertexArray(vao);
 
 	glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
-	glBufferData(GL_ARRAY_BUFFER, 24 * sizeof(GLfloat), vertex, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, objfile.vertexNum * 3 * sizeof(GLfloat), objfile.vertex, GL_STATIC_DRAW);
 
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, 36 * sizeof(int), face, GL_STATIC_DRAW);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, objfile.faceNum * 3 * sizeof(int), objfile.face_v, GL_STATIC_DRAW);
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), 0);
 	glEnableVertexAttribArray(0);
 
@@ -389,157 +381,85 @@ void InitBuffer()
 
 GLvoid TimerFunction(int value)
 {
-	if (value == 1 && cube_rotate_x != 0)
+	if (value == 1)
 	{
-		CRX += cube_rotate_x * Speed;
 
 		glutTimerFunc(10, TimerFunction, 1);
 	}
-	else if (value == 2 && cube_rotate_y != 0)
-	{
-		CRY += cube_rotate_y * Speed;
 
-		glutTimerFunc(10, TimerFunction, 2);
-	}
-	else if (value == 3 && cone_rotate_x != 0)
-	{
-		CONERX += cone_rotate_x * Speed;
-
-		glutTimerFunc(10, TimerFunction, 3);
-	}
-	else if (value == 4 && cone_rotate_y != 0)
-	{
-		CONERY += cone_rotate_y * Speed;
-
-		glutTimerFunc(10, TimerFunction, 4);
-	}
-	else if (value == 5 && line_rotate_y != 0)
-	{
-		LRY += (GLfloat)line_rotate_y * Speed / 2;
-
-		glutTimerFunc(10, TimerFunction, 5);
-	}
 	glutPostRedisplay();
 }
 GLvoid Keyboard(unsigned char key, int x, int y)
 {
 	switch (key)
 	{
-	case 'x':
-		if (cube_rotate_x != 1)
-		{
-			if (cube_rotate_x == 0) glutTimerFunc(10, TimerFunction, 1);
-			cube_rotate_x = 1;
-		}
-		else cube_rotate_x = 0;
-		break;
-	case 'X':
-		if (cube_rotate_x != -1)
-		{
-			if (cube_rotate_x == 0) glutTimerFunc(10, TimerFunction, 1);
-			cube_rotate_x = -1;
-		}
-		else cube_rotate_x = 0;
-		break;
-	case 'y':
-		if (cube_rotate_y != 1)
-		{
-			if (cube_rotate_y == 0) glutTimerFunc(10, TimerFunction, 2);
-			cube_rotate_y = 1;
-		}
-		else cube_rotate_y = 0;
-		break;
-	case 'Y':
-		if (cube_rotate_y != -1)
-		{
-			if (cube_rotate_y == 0) glutTimerFunc(10, TimerFunction, 2);
-			cube_rotate_y = -1;
-		}
-		else cube_rotate_y = 0;
-		break;
+		//---좌측 도형의 이동
 	case 'a':
-		if (cone_rotate_x != 1)
-		{
-			cout << "ddd";
-			if (cone_rotate_x == 0) glutTimerFunc(10, TimerFunction, 3);
-			cone_rotate_x = 1;
-		}
-		else cone_rotate_x = 0;
-		break;
-	case 'A':
-		if (cone_rotate_x != -1)
-		{
-			if (cone_rotate_x == 0) glutTimerFunc(10, TimerFunction, 3);
-			cone_rotate_x = -1;
-		}
-		else cone_rotate_x = 0;
+		L_shape_trans[0] += 0.05;
 		break;
 	case 'b':
-		if (cone_rotate_y != 1)
-		{
-			if (cone_rotate_y == 0) glutTimerFunc(10, TimerFunction, 4);
-			cone_rotate_y = 1;
-		}
-		else cone_rotate_y = 0;
-		break;
-	case 'B':
-		if (cone_rotate_y != -1)
-		{
-			if (cone_rotate_y == 0) glutTimerFunc(10, TimerFunction, 4);
-			cone_rotate_y = -1;
-		}
-		else cone_rotate_y = 0;
-		break;
-	case 'r':
-		if (line_rotate_y != 1)
-		{
-			if (line_rotate_y == 0) glutTimerFunc(10, TimerFunction, 5);
-			line_rotate_y = 1;
-		}
-		else line_rotate_y = 0;
-		break;
-	case 'R':
-		if (line_rotate_y != -1)
-		{
-			if (line_rotate_y == 0) glutTimerFunc(10, TimerFunction, 5);
-			line_rotate_y = -1;
-		}
-		else line_rotate_y = 0;
-		break;
-	case 's':
-		cube_rotate_x = 0; cube_rotate_y = 0;
-		cone_rotate_x = 0; cone_rotate_y = 0;
-		line_rotate_y = 0;
-		LRY = 30;
-		CRX = 0; CRY = 0; CONERX = 0; CONERY = 0;
-		changeShape = false;
+		L_shape_trans[1] += 0.05;
 		break;
 	case 'c':
-		if (changeShape == false) changeShape = true;
-		else changeShape = false;
-
+		L_shape_trans[2] += 0.05;
+		break;
+	case 'A':
+		L_shape_trans[0] -= 0.05;
+		break;
+	case 'B':
+		L_shape_trans[1] -= 0.05;
+		break;
+	case 'C':
+		L_shape_trans[2] -= 0.05;
+		break;
+		//---우측 도형의 이동
+	case 'x':
+		R_shape_trans[0] += 0.05;
+		break;
+	case 'y':
+		R_shape_trans[1] += 0.05;
+		break;
+	case 'z':
+		R_shape_trans[2] += 0.05;
+		break;
+	case 'X':
+		R_shape_trans[0] -= 0.05;
+		break;
+	case 'Y':
+		R_shape_trans[1] -= 0.05;
+		break;
+	case 'Z':
+		R_shape_trans[2] -= 0.05;
+		break;
+		//---좌측 도형 제자리 신축
+	case 'w':
+		if(L_shape_scale < 0.5) L_shape_scale += 0.01;
+		break;
+	case 'W':
+		if (L_shape_scale > 0.05) L_shape_scale -= 0.01;
+		break;
+		//---우측 도형 제자리 신축
+	case 'e':
+		if (R_shape_scale < 0.5) R_shape_scale += 0.01;
+		break;
+	case 'E':
+		if (R_shape_scale > 0.05) R_shape_scale -= 0.01;
+		break;
+	case 'd':
+		if (L_shape_scale_origin < 1.5) L_shape_scale_origin += 0.01;
+		break;
+	case 'D':
+		if (L_shape_scale_origin > 0.5) L_shape_scale_origin -= 0.01;
+		break;
+		//---우측 도형 제자리 신축
+	case 'f':
+		if (R_shape_scale_origin < 1.5) R_shape_scale_origin += 0.01;
+		break;
+	case 'F':
+		if (R_shape_scale_origin > 0.5) R_shape_scale_origin -= 0.01;
 		break;
 	case 'q':
 		glutDestroyWindow(windowID);
-		break;
-	//-----15번
-	case '1':
-		L_shape_scale[0] += 0.05;
-		break;
-	case '2':
-		L_shape_scale[1] += 0.05;
-		break;
-	case '3':
-		L_shape_scale[2] += 0.05;
-		break;
-	case '!':
-		L_shape_scale[0] -= 0.05;
-		break;
-	case '@':
-		L_shape_scale[1] -= 0.05;
-		break;
-	case '#':
-		L_shape_scale[2] -= 0.05;
 		break;
 	}
 	glutPostRedisplay();
@@ -569,47 +489,4 @@ char* filetobuf(const char* file)
 		buf[length] = 0;
 
 	return buf;
-}
-
-void ReadObj(FILE* objFile)
-{
-	//--- 1. 전체 버텍스 개수 및 삼각형 개수 세기
-	char count[100];
-	int vertexNum = 0;
-	int faceNum = 0;
-	while (!feof(objFile)) {
-		fscanf(objFile, "%s", count);
-		if (count[0] == 'v' && count[1] == '\0')
-			vertexNum += 1;
-		else if (count[0] == 'f' && count[1] == '\0')
-			faceNum += 1;
-		memset(count, '\0', sizeof(count)); // 배열 초기화
-	}
-	//--- 2. 메모리 할당
-
-	int vertIndex = 0;
-	int faceIndex = 0;
-	if (vertex != NULL) free(vertex);
-	if (face != NULL) free(face);
-
-	vertex = (glm::vec3*)malloc(sizeof(glm::vec3) * vertexNum);
-	face = (int*)malloc(sizeof(int) * faceNum * 3);
-
-	rewind(objFile);
-
-	//--- 3. 할당된 메모리에 각 버텍스, 페이스 정보 입력
-	while (!feof(objFile)) {
-		fscanf(objFile, "%s", count);
-		if (count[0] == 'v' && count[1] == '\0') {
-			fscanf(objFile, "%f %f %f",
-				&vertex[vertIndex].x, &vertex[vertIndex].y,
-				&vertex[vertIndex].z);
-			vertIndex++;
-		}
-		else if (count[0] == 'f' && count[1] == '\0') {
-			fscanf(objFile, "%d %d %d",
-				&face[faceIndex * 3], &face[faceIndex * 3 + 1], &face[faceIndex * 3 + 2]);
-			faceIndex++;
-		}
-	}
 }

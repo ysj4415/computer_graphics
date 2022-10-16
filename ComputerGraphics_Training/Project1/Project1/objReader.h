@@ -11,10 +11,18 @@
 #pragma once
 struct obj
 {
+	FILE* objFile;
 	glm::vec3* vertex = NULL;
 	int* face_v = NULL;
+	int* face_vt = NULL;
+	int* face_vn = NULL;
+
 	int vertexNum = 0;
 	int faceNum = 0;
 
-	void ReadObj(FILE* objFile);
+	void ReadObj();
+	obj(const char* s)
+	{
+		objFile = fopen(s, "rb");
+	}
 };

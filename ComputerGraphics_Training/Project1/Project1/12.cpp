@@ -118,7 +118,7 @@ GLvoid drawScene()
 	glUseProgram(s_program_line);
 
 	glBindVertexArray(vao_line);
-	glEnableVertexAttribArray(0);
+	//glEnableVertexAttribArray(0);
 	glUniform4f(vColorLocation_line, 1.0f, 0.0f, 0.0f, 1.0f);
 	glDrawArrays(GL_LINES, 0, 2);
 	glUniform4f(vColorLocation_line, 0.0f, 1.0f, 0.0f, 1.0f);
@@ -140,7 +140,14 @@ GLvoid drawScene()
 
 	glBindVertexArray(vao);
 	glEnableVertexAttribArray(0);
-		
+
+
+	glUniform4f(vColorLocation, 1.0f, 1.0f, 1.0f, 1.0f);
+
+	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	//glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, (GLvoid*)(sizeof(GLuint) * 0));
+	//glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	glDrawElements(GL_LINES, 36, GL_UNSIGNED_INT, (GLvoid*)(sizeof(GLuint) * 0));
 
 	if (IsCube == true)
 	{
@@ -267,6 +274,7 @@ void InitShader()
 		std::cerr << "ERROR: shader program 연결 실패\n" << errorLog << std::endl;
 		return;
 	}
+
 	glLinkProgram(s_program_line);
 	// ---세이더가 잘 연결되었는지 체크하기
 	glGetProgramiv(s_program_line, GL_LINK_STATUS, &result);
