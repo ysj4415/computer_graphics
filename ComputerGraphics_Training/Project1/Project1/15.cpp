@@ -11,6 +11,7 @@
 #include <gl/glm/ext.hpp>
 #include <gl/glm/gtc/matrix_transform.hpp>
 #include "objReader.h"
+#include <cmath>
 
 #define Speed 1
 
@@ -27,6 +28,7 @@ GLvoid drawScene(GLvoid);
 GLvoid Reshape(int w, int h);
 GLvoid Keyboard(unsigned char key, int x, int y);
 GLvoid TimerFunction(int value);
+void SpecialKeyboard(int key, int x, int y);
 
 //---glsl
 void make_vertexShader();
@@ -40,6 +42,7 @@ GLuint vertexshader[2], fragmentshader[2];		//---세이더 객체
 GLuint vao_line, vao;
 GLuint vbo_line, vbo[2];
 GLuint ebo;
+GLuint vao_tornado, vbo_tornado;
 //---쉐이더 프로그램
 GLuint s_program;
 GLuint s_program_line;
@@ -85,10 +88,151 @@ GLfloat L_shape_scale = 0.1;
 GLfloat L_shape_scale_origin = 1.0;
 
 //----육면체(우)
-GLfloat R_shape_trans[3] = {0.5,0.2,0.0};
+GLfloat R_shape_trans[3] = {0.5,0.0,0.0};
 GLfloat R_shape_scale = 0.2;
 GLfloat R_shape_scale_origin = 1.0;
 
+GLfloat Line_y_trans = 0.0;
+
+//----토네이도 애니메이션
+bool tornado_anim = false;
+const double PI = 3.141592;
+GLfloat MaxRadian = 1.0f;	//---큰 원의 반지름
+int Dir = 0;				//---그려지는 방향
+int spotcount = 300;		//---원 하나에 찍히는 점의 개수
+double distance_s;
+double seta = 0;
+
+int L_tornado = 0;
+int R_tornado = 0;
+
+
+GLfloat* vertex_tornado;
+
+
+bool MoveToOri = false;
+bool changeMove = false;
+GLfloat* MakeTornado()
+{
+	GLfloat x = 0;
+	GLfloat z = 0;
+
+
+
+	GLfloat radius = 0;
+
+	GLfloat* arr = new GLfloat[spotcount * 6];
+
+	distance_s = (360.0 * 6) / spotcount;
+	if (Dir == 0) distance_s *= -1;		//방향 전환
+	double radian = seta * (PI / 180);
+
+
+	for (int i = 0; i < spotcount * 3; i++)
+	{
+		if (i % 3 == 0)				//x좌표
+		{
+			arr[i] = x + radius * cos(radian);
+		}
+		else if (i % 3 == 1)		//y좌표
+		{
+			arr[i] = 0.0f;
+		}
+		else if (i % 3 == 2)		//z좌표
+		{
+			arr[i] = (z + radius * sin(radian) * changeratio);
+			seta += distance_s;
+			radian = seta * (PI / 180);
+			radius += (MaxRadian) / spotcount;
+		}
+	}
+	return arr;
+}
+
+class PointToPoint
+{
+private:
+	GLfloat p1[3];
+	GLfloat p2[3];
+	int t;
+	bool dir = true;
+public:
+	PointToPoint()
+	{
+		for (int i = 0; i < 3; i++)
+		{
+			p1[i] = 0; p2[i] = 0;
+		}
+		t = 0;
+	}
+	PointToPoint(GLfloat gp1[3], GLfloat gp2[3]) {
+		for (int i = 0; i < 3; i++)
+		{
+			p1[i] = gp1[i]; p2[i] = gp2[i];
+		}
+		t = 0;
+	}
+	GLfloat GetPoint(char c)
+	{
+		int a;
+		switch (c)
+		{
+		case 'x':
+			a = 0;
+			break;
+		case 'y':
+			a = 1;
+			break;
+		case 'z':
+			a = 2;
+			break;
+		}
+		return (1 - (float)t / 100) * p1[a] + (float)t / 100 * p2[a];
+	}
+	void SetT() { t = 0; }
+	bool PlusT(int a) 
+	{
+		if (t < 100)
+		{
+			t += a;
+			return true;
+		}
+		else
+		{
+			t = 0;
+			return false;
+		}
+	}
+	void SetP(GLfloat gp1[3], GLfloat gp2[3])
+	{
+		for (int i = 0; i < 3; i++)
+		{
+			p1[i] = gp1[i]; p2[i] = gp2[i];
+		}
+		t = 0;
+	}
+	void change()
+	{
+		//if (dir == true) dir = false;
+		//else dir = true;
+		GLfloat a;
+		for (int i = 0; i < 3; i++)
+		{
+			a = p1[i];
+			p1[i] = p2[i];
+			p2[i] = a;
+		}
+	}
+};
+
+PointToPoint Rmove_T;
+PointToPoint Lmove_T;
+PointToPoint Rtornado_T;
+PointToPoint Ltornado_T;
+PointToPoint RChanmove_T;
+PointToPoint LChanmove_T;
+GLfloat L_Change_Array[3][3] = { 0 };
+GLfloat R_Change_Array[3][3] = { 0 };
 
 
 void RandRGB()
@@ -125,6 +269,8 @@ void main(int argc, char** argv)		//---윈도우 출력, 콜백함수 설정
 	//glEnable(GL_DEPTH_TEST);
 	RandRGB();
 
+	vertex_tornado = MakeTornado();
+
 	InitShader();
 	InitBuffer();
 
@@ -133,6 +279,7 @@ void main(int argc, char** argv)		//---윈도우 출력, 콜백함수 설정
 	glutDisplayFunc(drawScene);
 	glutReshapeFunc(Reshape);
 	glutKeyboardFunc(Keyboard);
+	glutSpecialFunc(SpecialKeyboard);
 
 	glutMainLoop();
 }
@@ -155,13 +302,31 @@ GLvoid drawScene()
 	glUniformMatrix4fv(transformLocation, 1, GL_FALSE, glm::value_ptr(TR_line));
 
 	glBindVertexArray(vao_line);
+	
+	glUniform4f(vColorLocation_line, 0.0f, 1.0f, 0.0f, 1.0f);
+	glDrawArrays(GL_LINES, 2, 2);	//----y축
+	
+	TR_line = glm::translate(TR_line, glm::vec3(0, Line_y_trans, 0));
+	glUniformMatrix4fv(transformLocation, 1, GL_FALSE, glm::value_ptr(TR_line));
 	glEnableVertexAttribArray(0);
-	glUniform4f(vColorLocation_line, 0.0f, 0.0f, 0.0f, 1.0f);
-	glDrawArrays(GL_LINES, 0, 6);
+	glUniform4f(vColorLocation_line, 1.0f, 0.0f, 0.0f, 1.0f);
+	glDrawArrays(GL_LINES, 0, 2);	//----x축
 
+	glUniform4f(vColorLocation_line, 0.0f, 0.0f, 1.0f, 1.0f);
+	glDrawArrays(GL_LINES, 4, 2);	//----z축
 
+		//----토네이도 
+	if (tornado_anim == true)
+	{
+		glUniform4f(vColorLocation_line, 0.1f, 0.7f, 0.0f, 1.0f);
+		glBindVertexArray(vao_tornado);
+		glDrawArrays(GL_LINE_STRIP, 0, spotcount);
+
+	}
 
 	//---------- 원뿔 그리기(좌)
+	glUniform4f(vColorLocation_line, 0.0f, 0.0f, 0.0f, 1.0f);
+
 	glm::mat4 TR_cylinder = glm::mat4(1.0f);
 	glm::mat4 T_cylinder = glm::mat4(1.0f);
 	glm::mat4 Rx_cylinder = glm::mat4(1.0f);
@@ -169,7 +334,19 @@ GLvoid drawScene()
 	glm::mat4 S_cylinder = glm::mat4(1.0f);
 	glm::mat4 OS_cylinder = glm::mat4(1.0f);
 
-	T_cylinder = glm::translate(T_cylinder, glm::vec3(L_shape_trans[0], L_shape_trans[1], L_shape_trans[2]));
+
+	if (MoveToOri == true)
+		T_cylinder = glm::translate(T_cylinder, glm::vec3(Lmove_T.GetPoint('x'), Lmove_T.GetPoint('y'), Lmove_T.GetPoint('z')));
+
+	else if (tornado_anim == true)
+		T_cylinder = glm::translate(T_cylinder, glm::vec3(Ltornado_T.GetPoint('x'), Ltornado_T.GetPoint('y'), Ltornado_T.GetPoint('z')));
+
+	else if (changeMove == true)
+		T_cylinder = glm::translate(T_cylinder, glm::vec3(LChanmove_T.GetPoint('x'), LChanmove_T.GetPoint('y'), LChanmove_T.GetPoint('z')));
+
+	else
+		T_cylinder = glm::translate(T_cylinder, glm::vec3(L_shape_trans[0], L_shape_trans[1], L_shape_trans[2]));
+
 	Rx_cylinder = glm::rotate(Rx_cylinder, (GLfloat)glm::radians(CONERX), glm::vec3(1.0, 0.0, 0.0));
 	Ry_cylinder = glm::rotate(Ry_cylinder, (GLfloat)glm::radians(CONERY), glm::vec3(0.0, 1.0, 0.0));
 	S_cylinder = glm::scale(S_cylinder, glm::vec3(L_shape_scale, L_shape_scale, L_shape_scale));
@@ -188,6 +365,8 @@ GLvoid drawScene()
 
 
 
+
+
 	//---------- 육면체 그리기(우)
 
 
@@ -198,7 +377,14 @@ GLvoid drawScene()
 	glm::mat4 S_cube = glm::mat4(1.0f);
 	glm::mat4 OS_cube = glm::mat4(1.0f);
 
-	T_cube = glm::translate(T_cube, glm::vec3(R_shape_trans[0], R_shape_trans[1], R_shape_trans[2]));
+	if(MoveToOri == true)
+		T_cube = glm::translate(T_cube, glm::vec3(Rmove_T.GetPoint('x'), Rmove_T.GetPoint('y'), Rmove_T.GetPoint('z')));
+	else if(tornado_anim == true)
+		T_cube = glm::translate(T_cube, glm::vec3(Rtornado_T.GetPoint('x'), Rtornado_T.GetPoint('y'), Rtornado_T.GetPoint('z')));
+	else if(changeMove == true)
+		T_cube = glm::translate(T_cube, glm::vec3(RChanmove_T.GetPoint('x'), RChanmove_T.GetPoint('y'), RChanmove_T.GetPoint('z')));
+	else
+		T_cube = glm::translate(T_cube, glm::vec3(R_shape_trans[0], R_shape_trans[1], R_shape_trans[2]));
 	Rx_cube = glm::rotate(Rx_cube, (GLfloat)glm::radians(CRX), glm::vec3(1.0, 0.0, 0.0));
 	Ry_cube = glm::rotate(Ry_cube, (GLfloat)glm::radians(CRY), glm::vec3(0.0, 1.0, 0.0));
 	S_cube = glm::scale(S_cube, glm::vec3(R_shape_scale, R_shape_scale, R_shape_scale));
@@ -214,6 +400,8 @@ GLvoid drawScene()
 	transformLocation = glGetUniformLocation(s_program, "transform");
 	glUniformMatrix4fv(transformLocation, 1, GL_FALSE, glm::value_ptr(TR_cube));
 	glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, (GLvoid*)(sizeof(GLuint) * 0));
+
+
 
 
 
@@ -377,18 +565,100 @@ void InitBuffer()
 	glEnable(GL_DEPTH_TEST);
 	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
+
+	//---토네이도
+	glGenVertexArrays(1, &vao_tornado);
+	glGenBuffers(1, &vbo_tornado);
+
+	glBindVertexArray(vao_tornado);
+
+	glBindBuffer(GL_ARRAY_BUFFER, vbo_tornado);
+	glBufferData(GL_ARRAY_BUFFER, spotcount * 3 * sizeof(GLfloat), vertex_tornado, GL_STATIC_DRAW);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+	glEnableVertexAttribArray(0);
 }
+bool tornado_dir[2] = { false };
+
+int L_index = 0, R_index = 0;
 
 GLvoid TimerFunction(int value)
 {
-	if (value == 1)
+	if (value == 1 && tornado_anim == true)
 	{
+		if (Ltornado_T.PlusT(20) == false)
+		{
+			if (tornado_dir[0] == false)
+			{
+				L_tornado++;
+				GLfloat a[3] = { vertex_tornado[L_tornado * 3], vertex_tornado[L_tornado * 3 + 1],vertex_tornado[L_tornado * 3 + 2] };
+				GLfloat b[3] = { vertex_tornado[L_tornado * 3+3], vertex_tornado[L_tornado * 3 + 4],vertex_tornado[L_tornado * 3 + 5] };
+				Ltornado_T.SetP(a, b);
+			}
+			else
+			{
+				L_tornado--;
+				GLfloat a[3] = { vertex_tornado[L_tornado * 3], vertex_tornado[L_tornado * 3 + 1],vertex_tornado[L_tornado * 3 + 2] };
+				GLfloat b[3] = { vertex_tornado[L_tornado * 3 - 3], vertex_tornado[L_tornado * 3 - 2],vertex_tornado[L_tornado * 3 - 1] };
+
+				Ltornado_T.SetP(a, b);
+			}
+		}
+		if (Rtornado_T.PlusT(20) == false)
+		{
+			if (tornado_dir[1] == false)
+			{
+				R_tornado--;
+				GLfloat a[3] = { vertex_tornado[R_tornado * 3], vertex_tornado[R_tornado * 3 + 1],vertex_tornado[R_tornado * 3 + 2] };
+				GLfloat b[3] = { vertex_tornado[R_tornado * 3 - 3], vertex_tornado[R_tornado * 3 - 2],vertex_tornado[R_tornado * 3 - 1] };
+
+				Rtornado_T.SetP(a, b);
+			}
+			else
+			{
+				R_tornado++;
+				GLfloat a[3] = { vertex_tornado[R_tornado * 3], vertex_tornado[R_tornado * 3 + 1],vertex_tornado[R_tornado * 3 + 2] };
+				GLfloat b[3] = { vertex_tornado[R_tornado * 3 + 3], vertex_tornado[R_tornado * 3 + 4],vertex_tornado[R_tornado * 3 + 5] };
+
+				
+				Rtornado_T.SetP(a, b);
+			}
+		}
+
+		if (L_tornado == 1) tornado_dir[0] = false;
+		else if(L_tornado == spotcount -2) tornado_dir[0] = true;
+		if (R_tornado == 1) tornado_dir[1] = true;
+		else if (R_tornado == spotcount - 2) tornado_dir[1] = false;
 
 		glutTimerFunc(10, TimerFunction, 1);
 	}
+	else if (value == 2 && MoveToOri == true)
+	{
+		if (Rmove_T.PlusT(1) == false) Rmove_T.change();
+		if (Lmove_T.PlusT(1) == false)Lmove_T.change();
+		glutTimerFunc(20, TimerFunction, 2);
 
+	}
+	else if (value == 3 && changeMove == true)
+	{
+		if (LChanmove_T.PlusT(1) == false)
+		{
+			cout << L_index << endl;
+			L_index = (L_index + 1) % 3;
+			LChanmove_T.SetP(L_Change_Array[L_index], L_Change_Array[(L_index + 1) % 3]);
+		}
+		if (RChanmove_T.PlusT(1) == false)
+		{
+			R_index = (R_index + 1) % 3;
+			RChanmove_T.SetP(R_Change_Array[R_index], R_Change_Array[(R_index + 1) % 3]);
+		}
+		glutTimerFunc(20, TimerFunction, 3);
+
+	}
 	glutPostRedisplay();
 }
+
+
+
 GLvoid Keyboard(unsigned char key, int x, int y)
 {
 	switch (key)
@@ -461,11 +731,126 @@ GLvoid Keyboard(unsigned char key, int x, int y)
 	case 'q':
 		glutDestroyWindow(windowID);
 		break;
+	case 'r':
+		if (tornado_anim == false)
+		{
+			int spot[2] = {0};
+			float Min_range[2] = { 0 };
+			float range = 0;
+
+			for (int i = 0; i < spotcount; i++)
+			{
+				range = pow((float)L_shape_trans[0] - vertex_tornado[i * 3], 2) +
+					pow((float)L_shape_trans[1] - vertex_tornado[i * 3 + 1], 2) +
+					pow((float)L_shape_trans[2] - vertex_tornado[i * 3 + 2], 2);
+				if (range < Min_range[0] || i == 0)
+				{
+					Min_range[0] = range;
+					spot[0] = i;
+
+				}
+				range = pow((float)R_shape_trans[0] - vertex_tornado[i * 3], 2) +
+					pow((float)R_shape_trans[1] - vertex_tornado[i * 3 + 1], 2) +
+					pow((float)R_shape_trans[2] - vertex_tornado[i * 3 + 2], 2);
+				if (range < Min_range[1] || i == 0)
+				{
+
+					Min_range[1] = range;
+					spot[1] = i;
+
+				}
+			}
+
+			L_tornado = spot[0];
+			R_tornado = spot[1];
+			GLfloat a[3] = { vertex_tornado[L_tornado * 3], vertex_tornado[L_tornado * 3 + 1],vertex_tornado[L_tornado * 3 + 2] };
+			GLfloat b[3] = { vertex_tornado[L_tornado * 3 + 3], vertex_tornado[L_tornado * 3 + 4],vertex_tornado[L_tornado * 3 + 5] };
+
+			Ltornado_T.SetP(a, b);
+			GLfloat a2[3] = { vertex_tornado[R_tornado * 3], vertex_tornado[R_tornado * 3 + 1],vertex_tornado[R_tornado * 3 + 2] };
+			GLfloat b2[3] = { vertex_tornado[R_tornado * 3 - 3], vertex_tornado[R_tornado * 3 - 2],vertex_tornado[R_tornado * 3 - 1] };
+
+			Rtornado_T.SetP(a2, b2);
+
+			MoveToOri = false;
+			changeMove = false;
+
+			tornado_anim = true;
+		}
+		else
+		{
+			tornado_anim = false;
+		}
+		glutTimerFunc(50, TimerFunction, 1);
+		break;
+
+	case 't':
+		if (MoveToOri == false)
+		{
+			tornado_anim = false;
+			changeMove = false;
+
+			MoveToOri = true;
+			GLfloat a[3] = { 0,0,0 };
+			Rmove_T.SetP(R_shape_trans, a);
+			Lmove_T.SetP(L_shape_trans, a);
+			glutTimerFunc(50, TimerFunction, 2);
+		}
+		else MoveToOri = false;
+		
+
+		break;
+	case 's':
+		if (changeMove == false)
+		{
+			changeMove = true;
+			MoveToOri = false;
+			tornado_anim = false;
+			
+			for (int i = 0; i < 3; i++)
+			{
+				L_Change_Array[0][i] = L_shape_trans[i];
+				L_Change_Array[2][i] = R_shape_trans[i];
+
+				R_Change_Array[0][i] = R_shape_trans[i];
+				R_Change_Array[2][i] = L_shape_trans[i];
+			}
+			L_Change_Array[1][0] = (L_shape_trans[0] + R_shape_trans[0]) / 2;
+			L_Change_Array[1][1] = (L_shape_trans[1] + R_shape_trans[1]) / 2 + 0.3;
+			L_Change_Array[1][2] = (L_shape_trans[2] + R_shape_trans[2]) / 2 + 0.7;
+			R_Change_Array[1][0] = (L_shape_trans[0] + R_shape_trans[0]) / 2;
+			R_Change_Array[1][1] = (L_shape_trans[1] + R_shape_trans[1]) / 2 + 0.3;
+			R_Change_Array[1][2] = (L_shape_trans[2] + R_shape_trans[2]) / 2 - 0.7;
+			RChanmove_T.SetP(R_Change_Array[0], R_Change_Array[1]);
+			LChanmove_T.SetP(L_Change_Array[0], L_Change_Array[1]);
+			L_index = 0, R_index = 0;
+			glutTimerFunc(30, TimerFunction, 3);
+		}
+		else
+		{
+			changeMove = false;
+
+		}
+		break;
 	}
+
 	glutPostRedisplay();
 }
 
+void SpecialKeyboard(int key, int x, int y)
+{
+	switch (key)
+	{
 
+	case GLUT_KEY_UP:
+		Line_y_trans += 0.05;
+		break;
+	case GLUT_KEY_DOWN:
+		Line_y_trans -= 0.05;
+		break;
+	}
+	glutPostRedisplay();
+}
 char* filetobuf(const char* file)
 {
 	FILE* fp;
