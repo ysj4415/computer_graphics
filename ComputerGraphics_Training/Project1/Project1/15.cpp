@@ -15,6 +15,7 @@
 
 #define Speed 1
 
+int Tornado_Frame = 20;
 
 //---윈도우 사이즈 변수
 int WinSize_r = 1000;
@@ -99,7 +100,7 @@ bool tornado_anim = false;
 const double PI = 3.141592;
 GLfloat MaxRadian = 1.0f;	//---큰 원의 반지름
 int Dir = 0;				//---그려지는 방향
-int spotcount = 300;		//---원 하나에 찍히는 점의 개수
+int spotcount = 200;		//---원 하나에 찍히는 점의 개수
 double distance_s;
 double seta = 0;
 
@@ -291,7 +292,7 @@ GLvoid drawScene()
 
 	//-------------선 그리기
 	int vColorLocation_line = glGetUniformLocation(s_program_line, "vColor");
-	unsigned int transformLocation = glGetUniformLocation(s_program_line, "transform");
+	unsigned int transformLocation = glGetUniformLocation(s_program_line, "modelTransform");
 
 	glUseProgram(s_program_line);
 
@@ -354,7 +355,7 @@ GLvoid drawScene()
 
 	TR_cylinder = OS_cylinder * TR_line * T_cylinder * Rx_cylinder * Ry_cylinder * S_cylinder;
 
-	transformLocation = glGetUniformLocation(s_program_line, "transform");
+	transformLocation = glGetUniformLocation(s_program_line, "modelTransform");
 	glUniformMatrix4fv(transformLocation, 1, GL_FALSE, glm::value_ptr(TR_cylinder));
 	qobj = gluNewQuadric(); // 객체 생성하기
 	gluQuadricDrawStyle(qobj, GLU_LINE); // 도형 스타일
@@ -397,7 +398,7 @@ GLvoid drawScene()
 	glUseProgram(s_program);
 
 	glBindVertexArray(vao);
-	transformLocation = glGetUniformLocation(s_program, "transform");
+	transformLocation = glGetUniformLocation(s_program, "modelTransform");
 	glUniformMatrix4fv(transformLocation, 1, GL_FALSE, glm::value_ptr(TR_cube));
 	glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, (GLvoid*)(sizeof(GLuint) * 0));
 
@@ -585,7 +586,7 @@ GLvoid TimerFunction(int value)
 {
 	if (value == 1 && tornado_anim == true)
 	{
-		if (Ltornado_T.PlusT(20) == false)
+		if (Ltornado_T.PlusT(Tornado_Frame) == false)
 		{
 			if (tornado_dir[0] == false)
 			{
@@ -603,7 +604,7 @@ GLvoid TimerFunction(int value)
 				Ltornado_T.SetP(a, b);
 			}
 		}
-		if (Rtornado_T.PlusT(20) == false)
+		if (Rtornado_T.PlusT(Tornado_Frame) == false)
 		{
 			if (tornado_dir[1] == false)
 			{
@@ -831,6 +832,12 @@ GLvoid Keyboard(unsigned char key, int x, int y)
 			changeMove = false;
 
 		}
+		break;
+	case'+':
+		if (Tornado_Frame<90)Tornado_Frame += 10;
+		break;
+	case'-':
+		if (Tornado_Frame > 10)Tornado_Frame -= 10;
 		break;
 	}
 

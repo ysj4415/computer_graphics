@@ -39,6 +39,9 @@
     <ClCompile Include="objread.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
+    <ClCompile Include="16.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="objReader.h">
