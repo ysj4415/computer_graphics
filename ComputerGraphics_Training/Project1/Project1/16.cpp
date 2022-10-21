@@ -58,6 +58,8 @@ bool ortho_anim = false;
 
 //---자전 회전 
 GLfloat y_radian = 0;
+bool depthTest = true;
+
 //---각 면 정보 클래스
 class sidestate
 {
@@ -183,7 +185,7 @@ GLvoid drawScene()
 {
 
 	//---배경 초기화
-	glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	//---카메라 설정
@@ -535,6 +537,18 @@ GLvoid Keyboard(unsigned char key, int x, int y)
 {
 	switch (key)
 	{
+	case 'h':
+		if (depthTest == true)
+		{
+			depthTest = false;
+			glDisable(GL_DEPTH_TEST);
+		}
+		else
+		{
+			depthTest = true;
+			glEnable(GL_DEPTH_TEST);
+		}
+		break;
 	case 'y':
 		if (Y_rotating == false)
 		{

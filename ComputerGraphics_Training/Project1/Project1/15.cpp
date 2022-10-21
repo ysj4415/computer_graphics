@@ -275,6 +275,16 @@ void main(int argc, char** argv)		//---윈도우 출력, 콜백함수 설정
 	InitShader();
 	InitBuffer();
 
+	cout << "a,b,c/A,B,C: 원뿔 이동" << endl;
+	cout << "x,y,z/X,Y,Z: 육면체 이동" << endl;
+	cout << "w/W: 원뿔 제자리 신축" << endl;
+	cout << "e/E: 육면체 제자리 신축" << endl;
+	cout << "d/D: 원뿔 원점 기준 신축" << endl;
+	cout << "f/F: 육면체 원점 기준 신축" << endl;
+	cout << "r: 토네이도 애니메이션" << endl;
+	cout << "t: 원점 이동 애니메이션" << endl;
+	cout << "s: 자리 바꾸기 애니메이션" << endl;
+	cout << "위/아래 화살표키: 전체 도형의 이동" << endl;
 
 
 	glutDisplayFunc(drawScene);
@@ -292,7 +302,7 @@ GLvoid drawScene()
 
 	//-------------선 그리기
 	int vColorLocation_line = glGetUniformLocation(s_program_line, "vColor");
-	unsigned int transformLocation = glGetUniformLocation(s_program_line, "modelTransform");
+	unsigned int transformLocation = glGetUniformLocation(s_program_line, "model");
 
 	glUseProgram(s_program_line);
 
@@ -355,7 +365,7 @@ GLvoid drawScene()
 
 	TR_cylinder = OS_cylinder * TR_line * T_cylinder * Rx_cylinder * Ry_cylinder * S_cylinder;
 
-	transformLocation = glGetUniformLocation(s_program_line, "modelTransform");
+	transformLocation = glGetUniformLocation(s_program_line, "model");
 	glUniformMatrix4fv(transformLocation, 1, GL_FALSE, glm::value_ptr(TR_cylinder));
 	qobj = gluNewQuadric(); // 객체 생성하기
 	gluQuadricDrawStyle(qobj, GLU_LINE); // 도형 스타일
@@ -420,7 +430,7 @@ GLvoid Reshape(int w, int h)
 void make_vertexShader()
 {
 	vertexsource[0] = filetobuf("vertex13.glsl");
-	vertexsource[1] = filetobuf("vertex.glsl");
+	vertexsource[1] = filetobuf("vertex_15.glsl");
 
 	for (int i = 0; i < 2; i++)
 	{
@@ -449,7 +459,7 @@ void make_vertexShader()
 void make_fragmentShader()
 {
 	fragmentsource[0] = filetobuf("fragment13.glsl");
-	fragmentsource[1] = filetobuf("fragment.glsl");
+	fragmentsource[1] = filetobuf("fragment_15.glsl");
 
 	for (int i = 0; i < 2; i++)
 	{
@@ -564,6 +574,7 @@ void InitBuffer()
 	glEnableVertexAttribArray(1);
 
 	glEnable(GL_DEPTH_TEST);
+
 	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
 
@@ -643,7 +654,6 @@ GLvoid TimerFunction(int value)
 	{
 		if (LChanmove_T.PlusT(1) == false)
 		{
-			cout << L_index << endl;
 			L_index = (L_index + 1) % 3;
 			LChanmove_T.SetP(L_Change_Array[L_index], L_Change_Array[(L_index + 1) % 3]);
 		}
@@ -838,6 +848,18 @@ GLvoid Keyboard(unsigned char key, int x, int y)
 		break;
 	case'-':
 		if (Tornado_Frame > 10)Tornado_Frame -= 10;
+		break;
+	case'h':
+		cout << "a,b,c/A,B,C: 원뿔 이동" << endl;
+		cout << "x,y,z/X,Y,Z: 육면체 이동" << endl;
+		cout << "w/W: 원뿔 제자리 신축" << endl;
+		cout << "e/E: 육면체 제자리 신축" << endl;
+		cout << "d/D: 원뿔 원점 기준 신축" << endl;
+		cout << "f/F: 육면체 원점 기준 신축" << endl;
+		cout << "r: 토네이도 애니메이션" << endl;
+		cout << "t: 원점 이동 애니메이션" << endl;
+		cout << "s: 자리 바꾸기 애니메이션" << endl;
+		cout << "위/아래 화살표키: 전체 도형의 이동" << endl;
 		break;
 	}
 
