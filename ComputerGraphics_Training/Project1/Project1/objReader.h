@@ -25,4 +25,12 @@ struct obj
 	{
 		objFile = fopen(s, "rb");
 	}
+	obj()
+	{
+		objFile = NULL;
+	}
+	void OpenFile(const char* s)
+	{
+		objFile = fopen(s, "rb");
+	}
 };
