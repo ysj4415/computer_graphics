@@ -266,9 +266,6 @@ GLvoid drawScene()
 			TR_cube = pyramidside[i - 2].RotateAtPibot(TR_cube);
 			glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(TR_cube));
 			glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, (GLvoid*)(sizeof(GLuint) * i * 3));
-
-
-
 		}
 
 	}

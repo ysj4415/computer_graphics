@@ -328,15 +328,7 @@ void InitBuffer()
 	for (int i = 0; i < 3; i++)
 	{
 		objfile[i].ReadObj();
-		for (int j = 0; j < objfile[i].vertexNum; j++)
-		{
-			cout << j << "-----" << endl;
-			cout << objfile[0].vertex[j].x << ",";
-			cout << objfile[0].vertex[j].y << ",";
-			cout << objfile[0].vertex[j].z << endl;
 
-		}
-		cout << endl << endl;
 		glBindVertexArray(vao[i]);
 
 		glBindBuffer(GL_ARRAY_BUFFER, vbo[i]);
