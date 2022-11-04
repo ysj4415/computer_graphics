@@ -359,6 +359,18 @@ void InitBuffer()
 	glBufferData(GL_ARRAY_BUFFER, spotcount * 3 * sizeof(GLfloat), circle_vertex, GL_STATIC_DRAW);
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
 	glEnableVertexAttribArray(0);
+
+	obj objfile[3];
+	objfile[0].OpenFile("cube_18_1.obj");
+	objfile[1].OpenFile("cube_18_2.obj");
+	objfile[2].OpenFile("cube_18_3.obj");
+
+
+
+	for (int i = 0; i < 3; i++)
+	{
+		objfile[i].ReadObj();
+	}
 }
 
 

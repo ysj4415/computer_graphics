@@ -17,7 +17,7 @@ using namespace std;
 //---윈도우 사이즈 변수
 int WinSize_w = 1200;
 int WinSize_h = 800;
-int view_size[3][4] = { {20,20,WinSize_w/2, WinSize_h/2},{WinSize_w / 2 + 50, 20, WinSize_w / 4, WinSize_h / 4},{WinSize_w / 2 + 50, WinSize_h / 2 + 50, WinSize_w / 4, WinSize_h / 4} };
+int view_size[3][4];
 int windowID;		//---윈도우 아이디
 
 
@@ -34,8 +34,8 @@ void make_fragmentShader();
 void InitShader();
 void InitBuffer();
 char* filetobuf(const char* file);
-GLchar* vertexsource[3], * fragmentsource[3];		//---소스코드 저장 변수
-GLuint vertexshader[3], fragmentshader[3];		//---세이더 객체
+GLchar* vertexsource[4], * fragmentsource[4];		//---소스코드 저장 변수
+GLuint vertexshader[4], fragmentshader[4];		//---세이더 객체
 GLuint vao[3];
 GLuint vbo[3];
 GLuint vbo_color[3];
@@ -45,10 +45,32 @@ GLuint ebo[3];
 GLuint s_program;
 GLuint s_program_line;
 GLuint s_program_floor;
+GLuint s_program_view;
 
 //-----색
 GLfloat cube_color[3][24];
 
+GLuint vao_view[3];
+GLuint vbo_view[3];
+GLuint ebo_view[3];
+GLfloat mainview[12] = { -0.95f, -0.95f, 0.0f,
+						-0.95f, 0.1f, 0.0f,
+						0.1f, 0.1f, 0.0f,
+						0.1f, -0.95f, 0.0f };
+GLfloat topview[12] = { 0.2f, 0.0f, 0.0f ,
+						0.2f, 0.7f, 0.0f,
+						0.9f, 0.7f, 0.0f,
+						0.9f, 0.0f, 0.0f };
+GLfloat frontview[12] = { 0.2f, -0.95f, 0.0f ,
+						0.2f, -0.2f, 0.0f,
+						0.9f, -0.2f, 0.0f,
+						0.9f, -0.95f, 0.0f };
+int viewnumber[8] = { 0, 1, 1, 2,
+						2, 3, 0, 3 };
+//view_size[0][0] = mainview[0] * (WinSize_w / 2) + WinSize_w / 2;
+//view_size[0][1] = mainview[1] * (WinSize_h / 2) + WinSize_h / 2;
+//view_size[0][2] = mainview[6] * (WinSize_w / 2) + WinSize_w / 2;
+//view_size[0][3] = mainview[7] * (WinSize_h / 2) + WinSize_h / 2;
 
 void RandRGB()
 {
@@ -103,6 +125,21 @@ void main(int argc, char** argv)		//---윈도우 출력, 콜백함수 설정
 	InitBuffer();
 
 
+	view_size[0][0] = mainview[0] * (WinSize_w / 2) + WinSize_w / 2;
+	view_size[0][1] = mainview[1] * (WinSize_h / 2) + WinSize_h / 2;
+	view_size[0][2] = mainview[6] * (WinSize_w / 2) - mainview[0] * (WinSize_w / 2);
+	view_size[0][3] = mainview[7] * (WinSize_h / 2) - mainview[1] * (WinSize_h / 2);
+
+	view_size[1][0] = topview[0] * (WinSize_w / 2) + WinSize_w / 2;
+	view_size[1][1] = topview[1] * (WinSize_h / 2) + WinSize_h / 2;
+	view_size[1][2] = topview[6] * (WinSize_w / 2) - topview[0] * (WinSize_w / 2);
+	view_size[1][3] = topview[7] * (WinSize_h / 2) - topview[1] * (WinSize_h / 2);
+
+	view_size[2][0] = frontview[0] * (WinSize_w / 2) + WinSize_w / 2;
+	view_size[2][1] = frontview[1] * (WinSize_h / 2) + WinSize_h / 2;
+	view_size[2][2] = frontview[6] * (WinSize_w / 2) - frontview[0] * (WinSize_w / 2);
+	view_size[2][3] = frontview[7] * (WinSize_h / 2) - frontview[1] * (WinSize_h / 2);
+
 	glEnable(GL_DEPTH_TEST);
 
 
@@ -129,6 +166,12 @@ glm::mat4 cameraSetting()
 	dir = glm::translate(dir, glm::vec3(0.0f, -3.0f, -4.0f));
 
 	cameraDirection_trans = pos * dir * cameraDirection_trans;
+
+	////-----------------------
+	//glm::vec3 cameraPos = glm::vec3(0, 5, 5);		 //--- 카메라 위치
+	//cameraPos = shape_tras * cameraPos;
+
+	////-----------------------
 
 	glm::vec3 cameraPos = glm::vec3(cameraPos_trans.x, cameraPos_trans.y, cameraPos_trans.z);		 //--- 카메라 위치
 	glm::vec3 cameraDirection = glm::vec3(cameraDirection_trans.x, cameraDirection_trans.y, cameraDirection_trans.z); //--- 카메라 바라보는 방향
@@ -190,6 +233,8 @@ GLvoid drawScene()
 	//---배경 초기화
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+
 
 	//---카메라 설정
 	unsigned int viewLoc_shape = glGetUniformLocation(s_program, "view"); //--- 뷰잉 변환 설정
@@ -271,6 +316,22 @@ GLvoid drawScene()
 		}
 	}
 
+	glViewport(0, 0, WinSize_w, WinSize_h);
+
+	glUseProgram(s_program_view);
+
+	int vColorLocation = glGetUniformLocation(s_program_view, "vColor");
+	glUniform4f(vColorLocation, 1.0f, 0.0f, 1.0f, 1.0f);
+
+	for (int i = 0; i < 3; i++)
+	{
+		glBindVertexArray(vao_view[i]);
+
+		glEnableVertexAttribArray(0);
+		glDrawElements(GL_LINES, 8, GL_UNSIGNED_INT, 0);
+
+	}
+
 	glutSwapBuffers();
 }
 
@@ -286,8 +347,9 @@ void make_vertexShader()
 	vertexsource[0] = filetobuf("vertex_shape.glsl");
 	vertexsource[1] = filetobuf("vertex_line.glsl");
 	vertexsource[2] = filetobuf("vertex_floor.glsl");
+	vertexsource[3] = filetobuf("vertex_2d.glsl");
 
-	for (int i = 0; i < 3; i++)
+	for (int i = 0; i < 4; i++)
 	{
 		//--- 버텍스 세이더 객체 만들기
 		vertexshader[i] = glCreateShader(GL_VERTEX_SHADER);
@@ -317,8 +379,9 @@ void make_fragmentShader()
 	fragmentsource[0] = filetobuf("fragment_shape.glsl");
 	fragmentsource[1] = filetobuf("fragment_line.glsl");
 	fragmentsource[2] = filetobuf("fragment_floor.glsl");
+	fragmentsource[3] = filetobuf("fragment_2d.glsl");
 
-	for (int i = 0; i < 3; i++)
+	for (int i = 0; i < 4; i++)
 	{
 		//--- 프래그먼트 세이더 객체 만들기
 		fragmentshader[i] = glCreateShader(GL_FRAGMENT_SHADER);
@@ -368,14 +431,16 @@ void InitShader()
 	s_program = glCreateProgram();
 	s_program_line = glCreateProgram();
 	s_program_floor = glCreateProgram();
+	s_program_view = glCreateProgram();
 
 
 	LinkShader(s_program, vertexshader[0], fragmentshader[0]);
 	LinkShader(s_program_line, vertexshader[1], fragmentshader[1]);
 	LinkShader(s_program_floor, vertexshader[2], fragmentshader[2]);
+	LinkShader(s_program_view, vertexshader[3], fragmentshader[3]);
 
 	//--- 세이더 삭제하기
-	for (int i = 0; i < 3; i++)
+	for (int i = 0; i < 4; i++)
 	{
 		glDeleteShader(vertexshader[i]);
 		glDeleteShader(fragmentshader[i]);
@@ -416,6 +481,35 @@ void InitBuffer()
 
 		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), 0);
 		glEnableVertexAttribArray(1);
+	}
+
+	glGenVertexArrays(3, vao_view);
+	glGenBuffers(3, vbo_view);
+	glGenBuffers(3, ebo_view);
+
+	for (int i = 0; i < 3; i++)
+	{
+		glBindVertexArray(vao_view[i]);
+
+		glBindBuffer(GL_ARRAY_BUFFER, vbo_view[i]);
+
+		switch (i)
+		{
+		case 0:
+			glBufferData(GL_ARRAY_BUFFER, 12 * sizeof(GLfloat), mainview, GL_STATIC_DRAW);
+			break;
+		case 1:
+			glBufferData(GL_ARRAY_BUFFER, 12 * sizeof(GLfloat), topview, GL_STATIC_DRAW);
+			break;
+		case 2:
+			glBufferData(GL_ARRAY_BUFFER, 12 * sizeof(GLfloat), frontview, GL_STATIC_DRAW);
+			break;
+		}
+
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo_view[i]);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, 8 * sizeof(int), viewnumber, GL_STATIC_DRAW);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), 0);
+		glEnableVertexAttribArray(0);
 	}
 }
 
@@ -583,7 +677,7 @@ GLvoid Keyboard(unsigned char key, int x, int y)
 		Cube_rotate[3] = glm::vec3(0, 0, 0);
 
 
-		pos_trans = glm::vec3 (0.0f, 3.0f, 5.0f);
+		pos_trans = glm::vec3 (0.0f, 0.0f, 0.0f);
 		dir_trans = glm::vec3 (0.0f, 0.0f, 0.0f);
 		rotate_screen = 0.0;
 		rotate_camera = 0.0;
