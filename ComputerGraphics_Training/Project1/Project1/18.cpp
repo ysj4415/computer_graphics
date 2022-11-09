@@ -22,7 +22,7 @@ int windowID;		//---윈도우 아이디
 
 
 
-//---콜백 함수
+//---콜백 함수 
 GLvoid drawScene(GLvoid);
 GLvoid Reshape(int w, int h);
 GLvoid Keyboard(unsigned char key, int x, int y);
