@@ -7,8 +7,8 @@
 using namespace std;
 
 //---윈도우 사이즈 변수
-int WinSize_w = 800;
-int WinSize_h = 800;
+int WinSize_w = 1200;
+int WinSize_h = 700;
 int windowID;		//---윈도우 아이디
 
 //---콜백 함수
